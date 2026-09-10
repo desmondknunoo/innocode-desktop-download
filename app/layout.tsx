@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Footer, Nav } from "@/components/site";
 import ScrollToTop from "@/components/ScrollToTop";
 
 export const metadata: Metadata = {
@@ -12,5 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><Nav />{children}<Footer /><ScrollToTop /></body></html>;
+  return <html lang="en"><body>{children}<ScrollToTop /></body></html>;
 }
