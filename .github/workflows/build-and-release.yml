@@ -1,0 +1,114 @@
+# Builds the InnoCode desktop Windows .exe and Linux .deb and publishes them as a
+# draft GitHub release ON THIS repo (the download site reads releases from here).
+#
+# The app source lives in the public repo desmondknunoo/innocode-desktop; this
+# workflow checks it out at the same tag/ref and builds it on native runners, so
+# each installer carries its own platform toolchain (pruned to arduino:avr only).
+#
+# macOS is NOT built here: it ships to the Mac App Store as a signed .pkg built
+# locally and uploaded via Transporter.
+#
+# Trigger by pushing a matching tag here (e.g. git tag v1.1.1 && git push origin
+# v1.1.1 — the innocode-desktop repo must already have that tag), or run it by
+# hand from the Actions tab and type the ref to build.
+
+name: Build and release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "innocode-desktop tag or branch to build (e.g. v1.1.1)"
+        required: true
+        default: "develop"
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_REPO: desmondknunoo/innocode-desktop
+  BUILD_REF: ${{ github.event.inputs.ref || github.ref_name }}
+
+jobs:
+  windows:
+    name: Windows x64 (.exe)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout innocode-desktop source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.BUILD_REF }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Windows installer
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: --max_old_space_size=4096
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run dist
+
+      - name: Show what was built
+        shell: bash
+        run: ls -lh dist/*.exe
+
+      - name: Publish .exe to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_REF }}
+          name: InnoCode ${{ env.BUILD_REF }}
+          draft: true
+          files: dist/*.exe
+
+  linux:
+    name: Linux x64 (.deb)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout innocode-desktop source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.SOURCE_REPO }}
+          ref: ${{ env.BUILD_REF }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '16.x'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fix chrome-sandbox permissions
+        run: |
+          sudo chown root:root node_modules/electron/dist/chrome-sandbox
+          sudo chmod 4755 node_modules/electron/dist/chrome-sandbox
+
+      - name: Build Linux installer
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: --max_old_space_size=4096
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run dist
+
+      - name: Show what was built
+        run: ls -lh dist/*.deb
+
+      - name: Publish .deb to draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_REF }}
+          name: InnoCode ${{ env.BUILD_REF }}
+          draft: true
+          files: dist/*.deb
