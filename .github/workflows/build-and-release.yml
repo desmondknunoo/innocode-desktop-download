@@ -1,9 +1,15 @@
 # Builds the InnoCode desktop Windows .exe and Linux .deb and publishes them as a
 # draft GitHub release ON THIS repo (the download site reads releases from here).
 #
-# The app source lives in the public repo desmondknunoo/innocode-desktop; this
-# workflow checks it out at the same tag/ref and builds it on native runners, so
-# each installer carries its own platform toolchain (pruned to arduino:avr only).
+# The app source lives in the private repo desmondknunoo/innocode-desktop, and
+# the editor it installs lives in the private repo desmondknunoo/innocode-webapp.
+# This workflow checks the source out at the same tag/ref and builds it on native
+# runners, so each installer carries its own platform toolchain (pruned to
+# arduino:avr only). Builds run here because this repo is public, so the runner
+# minutes are free.
+#
+# SOURCE_TOKEN secret: a fine-grained personal access token with read access to
+# Contents on innocode-desktop and innocode-webapp. Without it the checkout fails.
 #
 # macOS is NOT built here: it ships to the Mac App Store as a signed .pkg built
 # locally and uploaded via Transporter.
@@ -46,6 +52,21 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ env.BUILD_REF }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Let npm clone the private editor
+        # npm installs github:desmondknunoo/innocode-webapp. Point git at it
+        # over HTTPS with the token, whatever URL form npm uses.
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        run: |
+          repo=desmondknunoo/innocode-webapp
+          target="https://x-access-token:${TOKEN}@github.com/${repo}"
+          git config --global url."${target}".insteadOf "ssh://git@github.com/${repo}"
+          git config --global --add url."${target}".insteadOf "git@github.com:${repo}"
+          git config --global --add url."${target}".insteadOf "https://github.com/${repo}"
 
       - uses: actions/setup-node@v4
         with:
@@ -82,6 +103,21 @@ jobs:
         with:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ env.BUILD_REF }}
+          token: ${{ secrets.SOURCE_TOKEN }}
+          persist-credentials: false
+
+      - name: Let npm clone the private editor
+        # npm installs github:desmondknunoo/innocode-webapp. Point git at it
+        # over HTTPS with the token, whatever URL form npm uses.
+        shell: bash
+        env:
+          TOKEN: ${{ secrets.SOURCE_TOKEN }}
+        run: |
+          repo=desmondknunoo/innocode-webapp
+          target="https://x-access-token:${TOKEN}@github.com/${repo}"
+          git config --global url."${target}".insteadOf "ssh://git@github.com/${repo}"
+          git config --global --add url."${target}".insteadOf "git@github.com:${repo}"
+          git config --global --add url."${target}".insteadOf "https://github.com/${repo}"
 
       - uses: actions/setup-node@v4
         with:
